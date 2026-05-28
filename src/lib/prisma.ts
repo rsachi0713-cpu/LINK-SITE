@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { Pool } from '@prisma/pg-worker'
+
 import { PrismaPg } from '@prisma/adapter-pg-worker'
 
 const globalForPrisma = globalThis as unknown as {
@@ -8,8 +8,7 @@ const globalForPrisma = globalThis as unknown as {
 
 // Instantiate the pg pool and Prisma adapter
 const connectionString = process.env.DATABASE_URL
-const pool = new Pool({ connectionString })
-const adapter = new PrismaPg(pool)
+const adapter = new PrismaPg({ connectionString })
 
 export const prisma =
   globalForPrisma.prisma ??
