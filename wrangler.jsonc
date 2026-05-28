@@ -3,6 +3,7 @@
   "main": ".open-next/worker.js",
   "name": "link-site",
   "compatibility_date": "2026-05-27",
+  "keep_names": false,
   "compatibility_flags": [
     "nodejs_compat"
   ],
