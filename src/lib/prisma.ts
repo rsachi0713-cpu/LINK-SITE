@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client'
-
 import { PrismaPg } from '@prisma/adapter-pg-worker'
 import { Pool } from '@prisma/pg-worker'
 
@@ -7,15 +6,13 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// Instantiate the pg pool and Prisma adapter with settings optimized for Cloudflare Workers & PgBouncer
-const connectionString = process.env.DATABASE_URL
+// Use @prisma/pg-worker and @prisma/adapter-pg-worker which are specifically
+// designed for Cloudflare Workers (uses Cloudflare's TCP socket API, not Node.js `pg`)
 const pool = new Pool({
-  connectionString,
-  max: 10,
-  idleTimeoutMillis: 500, // Close idle connections after 500ms to prevent stale connection hangs
-  connectionTimeoutMillis: 2000, // Fail fast if connection takes more than 2s
+  connectionString: process.env.DATABASE_URL,
 })
-const adapter = new PrismaPg(pool as any)
+
+const adapter = new PrismaPg(pool)
 
 export const prisma =
   globalForPrisma.prisma ??

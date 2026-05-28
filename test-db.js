@@ -3,10 +3,17 @@ const prisma = new PrismaClient();
 
 async function main() {
   try {
-    const count = await prisma.user.count();
-    console.log('Database connected! User count:', count);
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      }
+    });
+    console.log('=== REGISTERED USERS IN DATABASE ===');
+    console.log(JSON.stringify(users, null, 2));
   } catch (error) {
-    console.error('Database connection failed:', error);
+    console.error('Database query failed:', error);
   } finally {
     await prisma.$disconnect();
   }
