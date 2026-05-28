@@ -43,7 +43,7 @@ export default function RegisterPage() {
         }
       } else {
         const data = await res.json();
-        setError(data.error || "An error occurred");
+        setError(data.error + (data.details ? ": " + data.details : ""));
       }
     } catch (err) {
       setError("An error occurred");
