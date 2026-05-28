@@ -21,5 +21,11 @@
   },
   "observability": {
     "enabled": true
+  },
+  "vars": {
+    "DATABASE_URL": "postgresql://postgres.hxbjonxpqeleunqnmcjw:Unloackise%402026%40@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres?pgbouncer=true",
+    "DIRECT_URL": "postgresql://postgres.hxbjonxpqeleunqnmcjw:Unloackise%402026%40@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres",
+    "NEXTAUTH_SECRET": "super-secret-rekonise-clone-key-12345",
+    "NEXTAUTH_URL": "https://link-site.rsachi0713.workers.dev"
   }
 }

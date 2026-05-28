@@ -4,7 +4,15 @@ import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
   try {
-    const { email, password, name } = await req.json();
+    let text;
+    let body;
+    try {
+      text = await req.text();
+      body = JSON.parse(text);
+    } catch (e: any) {
+      return NextResponse.json({ error: "Failed to parse request JSON", details: e.message, rawText: text }, { status: 400 });
+    }
+    const { email, password, name } = body;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -13,9 +21,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    let existingUser;
+    try {
+      existingUser = await prisma.user.findUnique({
+        where: { email },
+      });
+    } catch (e: any) {
+      return NextResponse.json({ error: "Database error on findUnique", details: e.message }, { status: 500 });
+    }
 
     if (existingUser) {
       return NextResponse.json(
@@ -26,13 +39,18 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-      },
-    });
+    let user;
+    try {
+      user = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+        },
+      });
+    } catch (e: any) {
+      return NextResponse.json({ error: "Database error on create", details: e.message }, { status: 500 });
+    }
 
     return NextResponse.json(
       { message: "User registered successfully", user: { id: user.id, email: user.email } },
@@ -41,7 +59,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json(
-      { error: "An error occurred during registration", details: error instanceof Error ? error.message : String(error) },
+      { error: "An unexpected error occurred", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
