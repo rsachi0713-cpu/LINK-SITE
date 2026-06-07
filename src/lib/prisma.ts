@@ -1,24 +1,45 @@
 import { PrismaClient } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg-worker'
-import { Pool } from '@prisma/pg-worker'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from 'pg'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-// Use @prisma/pg-worker and @prisma/adapter-pg-worker which are specifically
-// designed for Cloudflare Workers (uses Cloudflare's TCP socket API, not Node.js `pg`)
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-})
-
-const adapter = new PrismaPg(pool)
-
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+/**
+ * Creates a fresh PrismaClient per request.
+ * 
+ * Cloudflare Workers isolates freeze between requests — reusing a singleton
+ * PrismaClient causes stale TCP sockets that hang forever. The fix is to
+ * create a new client each time and disconnect after use.
+ */
+export function createPrismaClient(): PrismaClient {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 1,                    // Only 1 connection per request
+    idleTimeoutMillis: 0,      // Don't keep idle connections
+    connectionTimeoutMillis: 5000,
+    ssl: { rejectUnauthorized: false },
   })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+  const adapter = new PrismaPg(pool as any)
+
+  return new PrismaClient({
+    adapter,
+    log: ['error'],
+  })
+}
+
+/**
+ * Run a database operation with an auto-disconnecting Prisma client.
+ * Always use this in API routes and auth callbacks.
+ * 
+ * Usage:
+ *   const user = await withPrisma(db => db.user.findUnique({ where: { email } }))
+ */
+export async function withPrisma<T>(
+  fn: (prisma: PrismaClient) => Promise<T>
+): Promise<T> {
+  const client = createPrismaClient()
+  try {
+    return await fn(client)
+  } finally {
+    await client.$disconnect()
+  }
+}

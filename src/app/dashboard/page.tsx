@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/authOptions";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { withPrisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
 import { Link as LinkIcon, PlusCircle, ExternalLink, Activity, LogOut } from "lucide-react";
@@ -13,11 +13,13 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const links = await prisma.link.findMany({
-    where: { userId: (session.user as any).id },
-    include: { steps: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const links = await withPrisma((db) =>
+    db.link.findMany({
+      where: { userId: (session.user as any).id },
+      include: { steps: true },
+      orderBy: { createdAt: "desc" },
+    })
+  );
 
   const totalSteps = links.reduce((acc, link) => acc + link.steps.length, 0);
 

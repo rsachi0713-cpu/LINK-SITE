@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { withPrisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import LockUI from "./LockUI";
@@ -12,14 +12,16 @@ interface PageProps {
 export default async function LockedLinkPage({ params }: PageProps) {
   const { slug } = await params;
   
-  const link = await prisma.link.findUnique({
-    where: { slug },
-    include: {
-      steps: {
-        orderBy: { order: 'asc' }
-      }
-    }
-  });
+  const link = await withPrisma((db) =>
+    db.link.findUnique({
+      where: { slug },
+      include: {
+        steps: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    })
+  );
 
   if (!link) {
     notFound();

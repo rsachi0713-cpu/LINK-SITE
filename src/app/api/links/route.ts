@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/authOptions";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { withPrisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
@@ -20,23 +20,25 @@ export async function POST(req: Request) {
     // Generate unique slug
     const slug = Math.random().toString(36).substring(2, 8) + Date.now().toString(36).substring(4, 7);
 
-    const link = await prisma.link.create({
-      data: {
-        title,
-        description,
-        targetUrl,
-        slug,
-        userId: (session.user as any).id,
-        steps: {
-          create: steps.map((step: any, index: number) => ({
-            order: index + 1,
-            title: step.title,
-            url: step.url,
-            waitTime: parseInt(step.waitTime) || 10,
-          })),
+    const link = await withPrisma((db) =>
+      db.link.create({
+        data: {
+          title,
+          description,
+          targetUrl,
+          slug,
+          userId: (session.user as any).id,
+          steps: {
+            create: steps.map((step: any, index: number) => ({
+              order: index + 1,
+              title: step.title,
+              url: step.url,
+              waitTime: parseInt(step.waitTime) || 10,
+            })),
+          },
         },
-      },
-    });
+      })
+    );
 
     return NextResponse.json({ success: true, link });
   } catch (error) {

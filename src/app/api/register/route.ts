@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { withPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
   try {
-    let text;
-    let body;
+    let body: any;
     try {
-      text = await req.text();
+      const text = await req.text();
       body = JSON.parse(text);
     } catch (e: any) {
-      return NextResponse.json({ error: "Failed to parse request JSON", details: e.message, rawText: text }, { status: 400 });
+      return NextResponse.json(
+        { error: "Failed to parse request JSON", details: e.message },
+        { status: 400 }
+      );
     }
+
     const { email, password, name } = body;
 
     if (!email || !password) {
@@ -21,14 +24,10 @@ export async function POST(req: Request) {
       );
     }
 
-    let existingUser;
-    try {
-      existingUser = await prisma.user.findUnique({
-        where: { email },
-      });
-    } catch (e: any) {
-      return NextResponse.json({ error: "Database error on findUnique", details: e.message }, { status: 500 });
-    }
+    // Check if email already in use
+    const existingUser = await withPrisma((db) =>
+      db.user.findUnique({ where: { email } })
+    );
 
     if (existingUser) {
       return NextResponse.json(
@@ -39,18 +38,11 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    let user;
-    try {
-      user = await prisma.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          name,
-        },
-      });
-    } catch (e: any) {
-      return NextResponse.json({ error: "Database error on create", details: e.message }, { status: 500 });
-    }
+    const user = await withPrisma((db) =>
+      db.user.create({
+        data: { email, password: hashedPassword, name },
+      })
+    );
 
     return NextResponse.json(
       { message: "User registered successfully", user: { id: user.id, email: user.email } },
@@ -59,7 +51,10 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json(
-      { error: "An unexpected error occurred", details: error instanceof Error ? error.message : String(error) },
+      {
+        error: "An unexpected error occurred",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
