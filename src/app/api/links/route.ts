@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/authOptions";
 import { NextResponse } from "next/server";
-import { withPrisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
@@ -17,32 +17,49 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Generate unique slug
     const slug = Math.random().toString(36).substring(2, 8) + Date.now().toString(36).substring(4, 7);
 
-    const link = await withPrisma((db) =>
-      db.link.create({
-        data: {
-          title,
-          description,
-          targetUrl,
-          slug,
-          userId: (session.user as any).id,
-          steps: {
-            create: steps.map((step: any, index: number) => ({
-              order: index + 1,
-              title: step.title,
-              url: step.url,
-              waitTime: parseInt(step.waitTime) || 10,
-            })),
-          },
+    const link = await prisma.link.create({
+      data: {
+        title,
+        description,
+        targetUrl,
+        slug,
+        userId: (session.user as any).id,
+        steps: {
+          create: steps.map((step: any, index: number) => ({
+            order: index + 1,
+            title: step.title,
+            url: step.url,
+            waitTime: parseInt(step.waitTime) || 10,
+          })),
         },
-      })
-    );
+      },
+    });
 
     return NextResponse.json({ success: true, link });
   } catch (error) {
     console.error("Link creation error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const links = await prisma.link.findMany({
+      where: { userId: (session.user as any).id },
+      include: { steps: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json({ links });
+  } catch (error) {
+    console.error("Link fetching error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
