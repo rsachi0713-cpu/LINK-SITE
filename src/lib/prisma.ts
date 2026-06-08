@@ -1,45 +1,33 @@
 import { PrismaClient } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { Pool } from 'pg'
+import { Pool } from '@prisma/pg-worker'
+import { PrismaPg } from '@prisma/adapter-pg-worker'
 
-/**
- * Creates a fresh PrismaClient per request.
- * 
- * Cloudflare Workers isolates freeze between requests — reusing a singleton
- * PrismaClient causes stale TCP sockets that hang forever. The fix is to
- * create a new client each time and disconnect after use.
- */
-export function createPrismaClient(): PrismaClient {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    max: 1,                    // Only 1 connection per request
-    idleTimeoutMillis: 0,      // Don't keep idle connections
-    connectionTimeoutMillis: 5000,
-    ssl: { rejectUnauthorized: false },
-  })
+function createPrismaClient() {
+  let connectionString = process.env.DATABASE_URL;
 
-  const adapter = new PrismaPg(pool as any)
-
-  return new PrismaClient({
-    adapter,
-    log: ['error'],
-  })
-}
-
-/**
- * Run a database operation with an auto-disconnecting Prisma client.
- * Always use this in API routes and auth callbacks.
- * 
- * Usage:
- *   const user = await withPrisma(db => db.user.findUnique({ where: { email } }))
- */
-export async function withPrisma<T>(
-  fn: (prisma: PrismaClient) => Promise<T>
-): Promise<T> {
-  const client = createPrismaClient()
   try {
-    return await fn(client)
-  } finally {
-    await client.$disconnect()
+    const cfContext = (globalThis as any)[Symbol.for("__cloudflare-context__")];
+    if (cfContext?.env?.HYPERDRIVE) {
+      const hd = cfContext.env.HYPERDRIVE;
+      if (hd.connectionString || (hd as any).connectionString) {
+        connectionString = hd.connectionString || (hd as any).connectionString;
+      }
+    }
+  } catch (e) {
+    // ignore
   }
+
+  const pool = new Pool({ connectionString })
+  const adapter = new PrismaPg(pool)
+  return new PrismaClient({ adapter })
 }
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+const prisma = globalForPrisma.prisma ?? createPrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+export default prisma

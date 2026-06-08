@@ -1,8 +1,11 @@
-fetch('http://localhost:3000/api/register', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'test', email: 'test6@test.com', password: 'password123' })
-}).then(async r => {
-  console.log(r.status);
-  console.log(await r.text());
-});
+async function testLive() {
+  const res = await fetch("https://link-site.rsachi0713.workers.dev/api/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "testlive_hyperdrive1@example.com", password: "password123", name: "Test Live" })
+  });
+  console.log("Status:", res.status);
+  const text = await res.text();
+  console.log("Body:", text);
+}
+testLive();

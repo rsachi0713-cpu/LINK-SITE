@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { withPrisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import prisma from "@/lib/prisma";
+import { hashPassword } from "@/lib/hash";
 
 export async function POST(req: Request) {
   try {
@@ -19,15 +19,18 @@ export async function POST(req: Request) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: "Email and password are required" },
+        { message: "Missing required fields" },
         { status: 400 }
       );
     }
+    
+    const emailTrimmed = email.toLowerCase().trim();
+    console.log("[REGISTER] Attempting to register:", emailTrimmed);
 
-    // Check if email already in use
-    const existingUser = await withPrisma((db) =>
-      db.user.findUnique({ where: { email } })
-    );
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: emailTrimmed },
+    });
 
     if (existingUser) {
       return NextResponse.json(
@@ -36,13 +39,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
-    const user = await withPrisma((db) =>
-      db.user.create({
-        data: { email, password: hashedPassword, name },
-      })
-    );
+    const user = await prisma.user.create({
+      data: {
+        email: emailTrimmed,
+        password: hashedPassword,
+        name: name || null,
+      },
+    });
 
     return NextResponse.json(
       { message: "User registered successfully", user: { id: user.id, email: user.email } },

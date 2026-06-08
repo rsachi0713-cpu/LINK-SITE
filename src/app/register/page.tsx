@@ -29,24 +29,38 @@ export default function RegisterPage() {
       });
 
       if (res.ok) {
-        // Auto login after registration
-        const loginRes = await signIn("credentials", {
-          email,
-          password,
-          redirect: false,
-        });
+        try {
+          // Auto login after registration
+          const loginRes = await signIn("credentials", {
+            email,
+            password,
+            redirect: false,
+          });
 
-        if (loginRes?.error) {
-          router.push("/login");
-        } else {
-          router.push("/dashboard");
+          if (loginRes?.error) {
+            router.push("/login?registered=true");
+          } else {
+            router.push("/dashboard");
+          }
+        } catch (autoLoginErr) {
+          console.error("Auto login failed due to timeout/error:", autoLoginErr);
+          // If auto login fails (e.g. Cloudflare CPU timeout), redirect to login
+          router.push("/login?registered=true");
         }
       } else {
-        const data = await res.json();
-        setError(data.error + (data.details ? ": " + data.details : ""));
+        let errorMessage = "Registration failed. Please try again.";
+        try {
+          const data = await res.json();
+          errorMessage = data.error + (data.details ? ": " + data.details : "");
+        } catch (parseErr) {
+          if (res.status >= 500) {
+            errorMessage = "Server is warming up. Please click 'Sign Up' again!";
+          }
+        }
+        setError(errorMessage);
       }
     } catch (err) {
-      setError("An error occurred");
+      setError("A network error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
