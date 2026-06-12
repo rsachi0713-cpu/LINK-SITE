@@ -1,12 +1,12 @@
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/authOptions";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { verifyUserId } from "@/lib/signUser";
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    const userId = req.headers.get("x-user-id");
+    const signature = req.headers.get("x-signature");
+    if (!userId || !signature || !verifyUserId(userId, signature)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
         description,
         targetUrl,
         slug,
-        userId: (session.user as any).id,
+        userId: userId as string,
         steps: {
           create: steps.map((step: any, index: number) => ({
             order: index + 1,
@@ -46,20 +46,22 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    const userId = req.headers.get("x-user-id");
+    const signature = req.headers.get("x-signature");
+
+    if (!userId || !signature || !verifyUserId(userId, signature)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const links = await prisma.link.findMany({
-      where: { userId: (session.user as any).id },
+      where: { userId },
       include: { steps: true },
       orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json({ links });
-  } catch (error) {
-    console.error("Link fetching error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  } catch (error: any) {
+    console.error("[API LINKS] Link fetching error:", error);
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }

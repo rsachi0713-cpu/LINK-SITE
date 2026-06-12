@@ -17,7 +17,17 @@ function createPrismaClient() {
     // ignore
   }
 
-  const pool = new Pool({ connectionString })
+  // Determine SSL requirement. If using Hyperdrive, it often connects via local proxy (no SSL needed).
+  // If falling back to Supabase direct URL, SSL is required.
+  const isHyperdrive = connectionString !== process.env.DATABASE_URL;
+  const poolConfig: any = { connectionString };
+  
+  if (!isHyperdrive) {
+    // Direct connection to Supabase requires SSL, but we ignore cert errors locally or on edge to prevent SELF_SIGNED_CERT_IN_CHAIN
+    poolConfig.ssl = { rejectUnauthorized: false };
+  }
+
+  const pool = new Pool(poolConfig)
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })
 }

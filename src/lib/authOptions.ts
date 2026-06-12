@@ -24,11 +24,9 @@ export const authOptions: NextAuthOptions = {
           
           let user;
           try {
-            // Transaction ekak use kalama Hyperdrive eken cache karanne naha, kelinma DB eken gannawa
-            user = await prisma.$transaction(async (tx) => {
-              return await tx.user.findUnique({
-                where: { email: emailTrimmed },
-              });
+            // Remove interactive transaction as it hangs over Hyperdrive/Cloudflare pg pool
+            user = await prisma.user.findUnique({
+              where: { email: emailTrimmed },
             });
             console.log("[AUTH] User lookup success:", user ? "Found" : "Not Found");
           } catch (dbErr: any) {

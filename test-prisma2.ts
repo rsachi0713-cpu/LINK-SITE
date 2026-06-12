@@ -1,0 +1,1 @@
+import p from './src/lib/prisma'; async function main() { console.log(await p.user.count()); process.exit(0); } main();

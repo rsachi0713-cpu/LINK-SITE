@@ -5,13 +5,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { Link as LinkIcon, PlusCircle, ExternalLink, Activity, LogOut, Loader2 } from "lucide-react";
 
-export default function DashboardClient({ user }: { user: any }) {
+export default function DashboardClient({ user, signature }: { user: any, signature: string }) {
   const [links, setLinks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/links")
+    fetch("/api/links?t=" + Date.now(), { 
+      cache: "no-store",
+      headers: {
+        "x-user-id": user.id,
+        "x-signature": signature
+      }
+    })
       .then(async (res) => {
         const text = await res.text();
         try {
